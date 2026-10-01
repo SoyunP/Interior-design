@@ -1,0 +1,168 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>우리집 꾸미기 · 복층 3D</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+KR:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<div class="app">
+  <section class="stage" id="stage" aria-label="3D 집 보기">
+    <div class="ov ov-top">
+      <div class="ovrow">
+        <div class="seg" role="group" aria-label="보기 방식">
+          <button id="mOrbit" class="on" type="button">위에서 보기</button>
+          <button id="mWalk" type="button">걸어보기</button>
+        </div>
+        <div class="seg" role="group" aria-label="층" id="levelSeg3d">
+          <button type="button" data-level="0" class="on">1층</button>
+          <button type="button" data-level="1">다락</button>
+        </div>
+      </div>
+      <div class="views" id="views">
+        <button type="button" data-v="entry">현관</button>
+        <button type="button" data-v="living">거실</button>
+        <button type="button" data-v="bed">침실</button>
+        <button type="button" data-v="office">오피스</button>
+        <button type="button" data-v="loft">다락</button>
+      </div>
+    </div>
+    <div class="ov ov-tr">
+      <div class="seg seg-sm" role="group" aria-label="조명 분위기" id="moodSeg">
+        <button type="button" data-mood="day" class="on">낮</button>
+        <button type="button" data-mood="evening">저녁</button>
+        <button type="button" data-mood="night">밤</button>
+      </div>
+      <button type="button" class="ovbtn" id="shotBtn">사진 저장</button>
+    </div>
+    <div class="pad" id="pad" hidden>
+      <button class="up" data-p="f" aria-label="앞으로">▲</button>
+      <button class="lt" data-p="l" aria-label="왼쪽으로 돌기">◀</button>
+      <button class="dn" data-p="b" aria-label="뒤로">▼</button>
+      <button class="rt" data-p="r" aria-label="오른쪽으로 돌기">▶</button>
+    </div>
+    <div class="hint" id="hint"></div>
+  </section>
+
+  <aside class="panel">
+    <header>
+      <p class="eyebrow">129㎡ · 복층 · 하부층 + 다락</p>
+      <h1>우리집 꾸미기</h1>
+      <p class="sub">가구를 골라 놓고, 끌어서 옮기고, 색과 마감을 바꿔 보세요. 평면도와 3D 어디서든 끌 수 있고 작업은 자동 저장돼요.</p>
+    </header>
+
+    <section>
+      <div class="planhead">
+        <h2>평면도 (cm)</h2>
+        <div class="seg seg-sm seg-plain" role="group" aria-label="평면도 층" id="levelSeg">
+          <button type="button" data-level="0" class="on">1층</button>
+          <button type="button" data-level="1">다락</button>
+        </div>
+      </div>
+      <div class="planwrap">
+        <svg id="plan" viewBox="-30 -34 800 796" role="img" aria-label="평면도와 가구 배치">
+          <defs>
+            <pattern id="hatch" width="16" height="16" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+              <line x1="0" y1="0" x2="0" y2="16" class="p-hatch"/>
+            </pattern>
+          </defs>
+          <g id="pStatic0"></g><g id="pStatic1"></g><g id="pItems"></g><g id="pPlayer"></g>
+        </svg>
+      </div>
+      <div class="toolbar">
+        <button type="button" class="btn" id="undoBtn" disabled>되돌리기</button>
+        <button type="button" class="btn" id="redoBtn" disabled>다시 하기</button>
+        <span class="savestate" id="saveState">자동 저장됨</span>
+      </div>
+    </section>
+
+    <nav class="tabs" role="tablist">
+      <button type="button" role="tab" data-tab="furn" class="on">가구</button>
+      <button type="button" role="tab" data-tab="deco">꾸미기</button>
+      <button type="button" role="tab" data-tab="check">점검 <span class="badge" id="warnBadge" hidden></span></button>
+      <button type="button" role="tab" data-tab="save">저장</button>
+    </nav>
+
+    <div class="tabpane" id="tab-furn">
+      <section class="card" id="sel"></section>
+      <section class="card" id="catalog"></section>
+    </div>
+
+    <div class="tabpane" id="tab-deco" hidden></div>
+
+    <div class="tabpane" id="tab-check" hidden>
+      <section>
+        <h2>배치 점검</h2>
+        <ul class="warns" id="warns"></ul>
+      </section>
+      <section class="note">
+        <h2 style="margin:0">거실 소파, 몇 센치로?</h2>
+        <p class="big">일자형 <span>200~215</span>, 깊이 <span>95</span></p>
+        <dl class="kv">
+          <dt>오른쪽 벽</dt><dd>235cm (아일랜드 ~ 창)</dd>
+          <dt>TV벽</dt><dd>239cm (오피스 문 ~ 창)</dd>
+          <dt>거실 폭</dt><dd>415cm (TV벽 ~ 오른쪽 벽)</dd>
+          <dt>TV까지 거리</dt><dd>약 275cm · 65~75인치에 맞음</dd>
+        </dl>
+        <p>소파를 오른쪽 벽 235cm에 붙이면 양끝에 10cm씩 남는 215cm가 최대예요. 아일랜드 쪽 끝은 스툴과 지나다닐 자리가 필요하니 200cm 정도면 더 편해요. 코너형을 원하면 코너를 창 쪽으로 돌린 215 × 160까지 들어가요.</p>
+        <p>사진 속 소파(307 × 210)는 오른쪽 벽보다 70cm 넘게 길어서 들어가지 않아요. 아래 소파 프리셋으로 바로 비교해 보세요.</p>
+        <div class="row" id="sofaPresets"></div>
+      </section>
+      <section class="note">
+        <h2 style="margin:0">홈 오피스 데스크 배치 (160 × 80 두 개)</h2>
+        <div class="row" id="officePresets"></div>
+        <p class="foot">창가에 나란히 두면 320cm라 방 폭 310cm에 들어가지 않아요. L자는 두 사람이 등지지 않고, 양쪽 벽은 의자 사이 통로가 넓어요.</p>
+      </section>
+      <p class="foot">평면 치수는 손글씨 평면도 기준이에요. 주방·욕실·계단 위치는 사진을 보고 맞춘 근사치라 실측과 몇 센치 다를 수 있어요. 킹은 국내 기준 160 × 200 매트리스예요.</p>
+    </div>
+
+    <div class="tabpane" id="tab-save" hidden>
+      <section class="note">
+        <h2 style="margin:0">배치안 저장</h2>
+        <p class="foot">지금 작업은 이 브라우저에 자동으로 저장돼요. 비교해 보고 싶은 배치는 이름을 붙여 따로 남겨 두세요.</p>
+        <form class="row" id="saveForm">
+          <input class="textin" id="saveName" placeholder="예: 소파 창가 배치" maxlength="40">
+          <button type="submit" class="btn primary">저장</button>
+        </form>
+        <ul class="saves" id="saveList"></ul>
+      </section>
+      <section class="note">
+        <h2 style="margin:0">파일로 주고받기</h2>
+        <div class="row">
+          <button type="button" class="btn" id="exportBtn">JSON 내보내기</button>
+          <label class="btn">JSON 불러오기<input type="file" id="importIn" accept="application/json,.json" hidden></label>
+          <button type="button" class="btn" id="shotBtn2">3D 사진 저장</button>
+        </div>
+      </section>
+      <section class="note">
+        <h2 style="margin:0">처음으로</h2>
+        <p class="foot">원래 배치와 마감으로 되돌려요. 되돌리기로 취소할 수 있어요.</p>
+        <div class="row"><button type="button" class="btn warn" id="resetBtn">기본 배치로 초기화</button></div>
+      </section>
+      <section class="note">
+        <h2 style="margin:0">단축키</h2>
+        <dl class="kv">
+          <dt>R</dt><dd>선택한 가구 90° 회전</dd>
+          <dt>방향키</dt><dd>5cm 이동 (Shift: 20cm, 위에서 보기)</dd>
+          <dt>Delete</dt><dd>선택한 가구 삭제</dd>
+          <dt>⌘/Ctrl + D</dt><dd>복제</dd>
+          <dt>⌘/Ctrl + Z</dt><dd>되돌리기 (Shift: 다시 하기)</dd>
+          <dt>Esc</dt><dd>선택 해제</dd>
+        </dl>
+      </section>
+    </div>
+  </aside>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="js/core.js"></script>
+<script src="js/finishes.js"></script>
+<script src="js/house.js"></script>
+<script src="js/catalog.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
