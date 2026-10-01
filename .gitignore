@@ -1,2 +1,4 @@
 # Private source photos stay local; commit only briefs and approved renders
 references/
+__pycache__/
+.banana-publication-capability-v1
