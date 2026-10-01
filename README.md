@@ -18,7 +18,25 @@ in this repo), then run `/reload-plugins`.
 In Claude Code on the web, add `GEMINI_API_KEY` as an environment variable in
 the cloud environment settings instead. Never commit keys to this repository.
 
-To install manually instead:
+### Project skill (`/banana`)
+
+The standalone Banana Claude skill is also vendored at `.claude/skills/banana`
+(copied from AgriciDaniel/banana-claude v3.0.0, commit `6a2b1b5`, MIT license
+included). It works in any Claude Code session on this repo, including the
+web, with no plugin install: it uses `/banana` and the bundled Python scripts
+(standard library only), and reads the key from the `GEMINI_API_KEY`
+environment variable. Check the setup with:
+
+```bash
+python3 .claude/skills/banana/scripts/doctor.py
+```
+
+`installation_layout` reports `unrecognized` because the skill wasn't placed by
+the upstream `install.sh`; that check doesn't affect generation.
+
+### Manual plugin install
+
+To install the plugin manually instead:
 
 ```text
 /plugin marketplace add AgriciDaniel/banana-claude
