@@ -1,0 +1,70 @@
+{
+  "schema_version": "banana.visual-brief.v1",
+  "goal": "Furnished redesign concept of the owner's living room (geosil), seen from the window-wall photo, blending warm Japandi calm with a rich New York apartment feel, for private design planning.",
+  "facts": [
+    "Room is about 4.15 m wide and 3.35 m deep.",
+    "Full-height black-framed window wall with roller blinds and a forest and mountain view.",
+    "Large-format white marble-look porcelain tile floor and a matching marble-look feature wall on the right.",
+    "Flat white ceiling with recessed downlights, a ceiling cassette air conditioner, and access panels."
+  ],
+  "locks": [
+    "Do not change the architecture: walls, wall positions, ceiling shape, window frames and mullions, glass, roller blinds, and the view outside stay exactly as photographed.",
+    "Keep the existing marble-look floor tile and the marble-look feature wall, including their color and veining.",
+    "Keep every ceiling fixture: downlights, air conditioner cassette, access panels, sprinkler and sensor.",
+    "Keep the wall sockets and switch plates in place.",
+    "Keep the same camera position, lens, perspective, and framing as the photo."
+  ],
+  "freedoms": [
+    "Add movable furniture, a rug, lamps, plants, art, books, and soft decor only.",
+    "Remove the white floor navigation circles and the small green dot, which are virtual-tour overlays, not part of the room."
+  ],
+  "direction": {
+    "mode": "creative",
+    "thesis": "Japandi restraint warmed by a collected New York apartment richness.",
+    "signature": "A low, deep oak-and-boucle sofa facing the forest view, grounded by a large wool rug in warm camel and charcoal, with one oversized framed artwork and a brass arc floor lamp.",
+    "avoid": "Sterile showroom staging, clutter, and generic gray modern furniture."
+  },
+  "composition": [
+    "Seating group centered in front of the window wall, low enough to keep the view open.",
+    "Leave the floor-to-window line visible so the room still reads as spacious.",
+    "Scale every piece to a 4.15 m by 3.35 m room; nothing oversized."
+  ],
+  "rendering": [
+    "Photorealistic interior photograph, soft overcast daylight from the windows, warm 2700K accent lamps.",
+    "Palette: light oak, walnut, cream boucle, camel leather, charcoal wool, aged brass, deep olive greenery.",
+    "Natural textures: linen, wool, matte ceramic, ribbed wood."
+  ],
+  "typography": {
+    "exact_copy": [],
+    "instructions": ["No visible text, logos, or watermarks."]
+  },
+  "references": [
+    {
+      "disclosure_alias": "living room window-wall photo",
+      "role": "object",
+      "purpose": "preserve room geometry, windows, floor, walls, and ceiling",
+      "subject_id": "my-living-room",
+      "authority": {
+        "rights_or_license": "affirmed",
+        "identity_or_likeness": "not_applicable",
+        "customer_or_private_asset": "affirmed",
+        "endorsement_or_representation": "not_applicable",
+        "provider_transmission": "affirmed",
+        "intended_use": "Private interior design concept for the user's own living room."
+      }
+    }
+  ],
+  "output": {
+    "aspect_ratio": "16:9",
+    "image_size": "1K",
+    "mime_type": "image/jpeg",
+    "delivery_notes": ["Viewed on screen for planning furniture choices."]
+  },
+  "review_tests": [
+    "Window frames, mullions, blinds, ceiling fixtures, sockets, floor tile, and marble wall match the source photo.",
+    "Camera angle and room proportions are unchanged.",
+    "Furniture is plausibly scaled for a 4.15 m by 3.35 m room and does not block the windows.",
+    "Navigation circles and the green dot are gone.",
+    "The style reads as Japandi warmth plus New York richness, not a generic showroom."
+  ]
+}
