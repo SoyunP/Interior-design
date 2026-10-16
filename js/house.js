@@ -4,11 +4,13 @@ const colliders=[], cutList=[], planWalls=[], planFixed=[], loftList=[], ceilLis
 // loft floor: 248 room over the bedroom, the landing south of the stairs, the 289 nook (ceiling 113) and the strip by the rail
 const LOFT=[[0,0,249,298],[249,190,325,298],[325,190,345,250],[345,42,646,250],[646,232,740,250]];
 // walled-off spaces at loft level: over the office, the north strip, the rooms over the bath/storage
-const CLOSED=[[0,298,325,720],[345,0,646,42],[646,0,740,232]];
+const CLOSED=[[345,0,646,42],[646,0,740,232]];
+// nothing is built over the office: its slab is only the office ceiling, so the loft view looks down into the room
+const OFFICE_TOP=[0,298,325,720];
 const LOW_CEIL=[345,42,646,232],LOW_H=1.13;
 const RAILS=[[323,250,327,298],[325,248,740,252],[343,42,347,190],[303,188,345,192]];
 // U-shaped stair: up the east lane (x 303-345) from the hall, winders at the north end, up the west lane to the loft at z 190
-const STAIR={x1:261,xm:303,x2:345,bottom:230,wind:62,top:190};
+const STAIR={x1:261,xm:303,x2:345,bottom:200,wind:62,top:190};
 const ROOMS=[
   {id:'bed',name:'침실',x1:0,z1:0,x2:249,z2:298},
   {id:'office',name:'홈오피스',x1:0,z1:310,x2:310,z2:720},
@@ -25,7 +27,7 @@ const inLoft=(x,z)=>LOFT.some(r=>inR(x,z,r));
 function zoneAt(x,z,y){
   if(x<0||x>740||z<0||z>720)return 'out';
   if(y>H1+.01)return x>=325&&z>=250?'living':'loft';
-  if(inR(x,z,[0,0,249,298]))return 'bed';
+  if(inR(x,z,[0,0,249,298])||inR(x,z,[249,200,303,298]))return 'bed';
   if(inR(x,z,[0,310,310,720]))return 'office';
   if(inR(x,z,[450,0,740,178]))return 'bath';
   if(inR(x,z,[325,485,740,720]))return 'living';
@@ -96,6 +98,7 @@ function downlight(x,z,y,list){const m=new THREE.Mesh(new THREE.CylinderGeometry
 box(-20,-20,760,738,-.25,0,slabMat);
 plane(0,0,740,720,.001,zoneFloorMat.common,1);
 plane(0,0,249,298,.003,zoneFloorMat.bed,1);       // 실2 bedroom
+plane(249,200,303,298,.003,zoneFloorMat.bed,1);   // 실2 entry nook
 plane(0,310,310,720,.003,zoneFloorMat.office,1);  // 실1 office
 plane(325,485,740,720,.003,zoneFloorMat.living,1); // living room
 plane(462,0,660,178,.003,bathMat,.6);             // bathroom
@@ -118,9 +121,22 @@ onCeil(wall(-20,720,760,738,5.0,H2,wallMat,{plan:false,collide:false}),{c:-.2},{
 onCeil(wall(0,721,740,731,4.95,5.0,darkMat,{collide:false,plan:false}),{c:-.25},{c:-.2});
 
 /* ---------- interior walls (ground floor, up to loft slab) ---------- */
-wallZ(249,261,0,298,[[200,296]]);                // 실2 east: 200cm solid run, then the door
-wall(0,298,261,310,0,H1);                        // 실2 south = 실1 north (shared)
-wall(261,298,325,310,0,H1);                      // 실1 north, under the stairs hall
+// 실2 opens into a small entry nook under the top of the stairs; the door to the hall is at the nook's east end
+wall(249,0,261,200,0,H1);                        // 실2 east: 200cm solid run along the stairs
+wall(261,190,303,200,0,H1);                      // nook north, under the top of the stairs
+wallZ(303,315,200,362,[[205,290]]);              // 실2 door to the hall, hinged at the stair end
+wall(0,298,199,310,0,H1);                        // 실2 south = 실1 north (shared)
+wall(315,298,325,310,0,H1);                      // hall corner by the office
+// 실2 wardrobe on the nook's south side: two full-height light grey doors, recessed into the office's corner
+{
+  const x0=211,x1=303,top=2.32,doorM=M('#d9d8d4',{roughness:.45}),gapM=M('#2a2826',{roughness:.7}),xm=(x0+x1)/2;
+  fixed(x0,300,x1,350,0,top,doorM,'옷장');
+  [[x0+1,xm-.4],[xm+.4,x1-1]].forEach(([a,b])=>cutOnly(box(a,298,b,300,.015,top-.01,doorM),.015,top-.01));
+  cutOnly(box(xm-.4,298.6,xm+.4,300,.015,top-.01,gapM),.015,top-.01);
+  wall(x0,298,x1,350,top,H1,null,{collide:false,plan:false});
+  wall(199,298,x0,362,0,H1);
+  wall(199,350,315,362,0,H1);
+}
 wall(310,310,325,392,0,H1);                      // 실1 east + door above the 239cm TV wall
 wall(310,392,325,478,2.14,H1,null,{collide:false,plan:false});frame('z',310,325,392,478);
 wall(310,478,325,720,0,H1,null,{over:{0:tvMat}}); // TV wall face toward living room
@@ -185,15 +201,13 @@ const pullMat=M('#1d1d1f',{roughness:.4,metalness:.2}),nicheMat=M('#2b2622',{rou
   cutOnly(box(x1-.2,250,x1+10,z2,0,.1,kickMat),0,.1);
 }
 // island runs 320cm from the east wall with a 129cm aisle behind it; white quartz top and waterfall end.
-// Living side: a 196cm knee recess (48cm deep, pale grey back) that takes four counter stools tucked in,
-// then a full-depth white block to the wall. Kitchen side: greige fronts with the washer next to the corner.
-const ISLAND_RECESS={x1:424,x2:620,z1:437,z2:485};
-fixed(424,381,ISLAND_RECESS.x2,ISLAND_RECESS.z1,0,.88,[quartzMat,quartzMat,quartzMat,quartzMat,islandBackMat,cabMat],'아일랜드');
+// Its west 196cm is open for stools on both sides: a 48cm knee recess toward the living room and another toward
+// the kitchen, split by a thin pale grey panel. Then a full-depth block to the wall with the washer on the kitchen side.
+const ISLAND_RECESS={x1:424,x2:620,z1:437,z2:485},ISLAND_RECESS_K={x1:424,x2:620,z1:381,z2:429};
+fixed(424,ISLAND_RECESS_K.z2,ISLAND_RECESS.x2,ISLAND_RECESS.z1,0,.88,[quartzMat,quartzMat,quartzMat,quartzMat,islandBackMat,islandBackMat],'아일랜드');
 fixed(ISLAND_RECESS.x2,381,740,485,0,.88,[quartzMat,quartzMat,quartzMat,quartzMat,quartzMat,cabMat],'아일랜드');
 {
-  [470,520,570,618].forEach(x=>cutOnly(box(x-.15,380.7,x+.15,381,.1,.8,seamMat),.1,.8));
-  cutOnly(box(424,380.8,680,381,.8,.84,grooveMat),.8,.84);
-  cutOnly(box(424,380.8,680,381,0,.1,kickMat),0,.1);
+  cutOnly(box(424,ISLAND_RECESS_K.z2-1.5,ISLAND_RECESS.x2,ISLAND_RECESS_K.z2,0,.03,quartzMat),0,.03);
   cutOnly(box(620,379.5,680,381,.02,.85,whiteMat),.02,.85);
   cutOnly(box(622,379.3,678,379.5,.74,.82,M('#dfe1e2',{roughness:.3})),.74,.82);
   const ring=new THREE.Mesh(new THREE.CylinderGeometry(.2,.2,.02,32),M('#b9bcbe',{roughness:.3,metalness:.5}));
@@ -225,6 +239,7 @@ cutOnly(box(660,390,712,428,.919,.926,screenMat),.919,.926);
 LOFT.forEach(([a,b,c,d])=>{loftList.push(box(a,b,c,d,2.6,H1,slabMat));loftList.push(plane(a,b,c,d,H1+.002,zoneFloorMat.loft,1));});
 const closedMat=M('#c9c6c0',{roughness:1});
 CLOSED.forEach(([a,b,c,d])=>{loftList.push(box(a,b,c,d,2.6,H1,slabMat));loftList.push(plane(a,b,c,d,H1+.002,closedMat));});
+{const [a,b,c,d]=OFFICE_TOP;ceilList.push(box(a,b,c,d,2.6,H1,slabMat));}
 // loft walls run from the loft floor to the roof
 const LOFT_WALLS=[[249,0,261,200],[0,298,325,310],[310,310,325,720],[345,0,357,42],[357,32,646,42],[646,42,658,232],[646,222,740,232]];
 LOFT_WALLS.forEach(([a,b,c,d])=>onCeil(wall(a,b,c,d,H1,H2),H1,{c:0}));
@@ -251,7 +266,7 @@ RAILS.forEach(r=>rail(...r));
 ceilList.push(onCeil(box(-20,-20,760,738,H2,H2+.1,slabMat),{c:0},{c:.1}));
 const LOW_LIGHTS=[[125,150],[155,555],[400,60],[290,340],[560,90]];
 const HIGH_LIGHTS=[[440,470],[600,470],[440,640],[600,640],[700,560],[560,315]];
-LOW_LIGHTS.forEach(([x,z])=>downlight(x,z,2.594,loftList));
+LOW_LIGHTS.forEach(([x,z])=>downlight(x,z,2.594,inR(x,z,OFFICE_TOP)?ceilList:loftList));
 HIGH_LIGHTS.forEach(([x,z])=>{downlight(x,z,H2-.006,ceilList);onCeil(ceilList[ceilList.length-1],{c:-.006});});
 const nightLights=[];
 LOW_LIGHTS.forEach(([x,z])=>{const l=new THREE.PointLight(lin('#ffd9a8'),0,6,2);l.position.set(cm(x),2.45,cm(z));scene.add(l);nightLights.push(l);});
@@ -287,5 +302,5 @@ const WINDOW_SPANS=[{x1:0,z1:718,x2:310,z2:738},{x1:325,z1:718,x2:740,z2:738}];
 const EXT_WALLS=planWalls.filter(w=>w.x1<0||w.z1<0||w.x2>740||w.z2>720);
 function hardList(lv){
   if(lv===1)return[...EXT_WALLS.map(w=>({...w,label:'벽'})),...LOFT_WALLS.map(([x1,z1,x2,z2])=>({x1,z1,x2,z2,label:'벽'})),...RAILS.map(([x1,z1,x2,z2])=>({x1,z1,x2,z2,label:'난간'}))];
-  return[...planWalls.map(w=>({...w,label:'벽'})),...planFixed,{x1:261,z1:0,x2:345,z2:230,label:'계단'},{x1:-20,z1:718,x2:760,z2:740,label:'창'}];
+  return[...planWalls.map(w=>({...w,label:'벽'})),...planFixed,{x1:261,z1:0,x2:345,z2:STAIR.bottom,label:'계단'},{x1:-20,z1:718,x2:760,z2:740,label:'창'}];
 }

@@ -14,7 +14,7 @@ const DEFAULT_ITEMS=[
   {id:'ns',type:'nightstand',label:'협탁',cx:212,cz:25,rot:0},
   {id:'deskA',type:'desk',label:'데스크 A',cx:225,cz:675,rot:180,h:74},
   {id:'deskB',type:'desk',label:'데스크 B',cx:42,cz:495,rot:90,h:110},
-  {id:'builtin',type:'builtIn',label:'붙박이장',cx:120,cz:340,rot:0,width:240},
+  {id:'builtin',type:'builtIn',label:'붙박이장',cx:90,cz:340,rot:0,width:180},
   {id:'sofa',type:'sofa',label:'소파',cx:692,cz:602,rot:270,L:215,C:0,D:95,side:1},
   {id:'tv',type:'tv',label:'TV장',cx:348,cz:600,rot:90,w:'#8b7155'},
   {id:'coffee',type:'coffee',label:'커피 테이블',cx:555,cz:600,rot:90},
@@ -24,8 +24,10 @@ const DEFAULT_ITEMS=[
   ...[0,1,2,3].map(i=>({id:'barStool'+(i+1),type:'barStool',label:i?`아일랜드 의자 ${i+1}`:'아일랜드 의자',
     cx:ISLAND_RECESS.x1+(ISLAND_RECESS.x2-ISLAND_RECESS.x1)*(2*i+1)/8,cz:ISLAND_RECESS.z2-24,rot:180})),
   {id:'comicShelf',type:'comicShelf',label:'만화책 책장',cx:60,cz:25,rot:0,lv:1},
+  {id:'lowShelf',type:'lowShelf',label:'낮은 책장',cx:125,cz:279,rot:180,lv:1},
+  {id:'globeLamp',type:'globeLamp',label:'글로브 램프',cx:222,cz:26,rot:0,lv:1},
 ];
-const freshState=()=>({v:13,items:DEFAULT_ITEMS.map(i=>withDefaults(Object.assign({lv:0},i))),finish:DEFAULT_FINISH()});
+const freshState=()=>({v:18,items:DEFAULT_ITEMS.map(i=>withDefaults(Object.assign({lv:0},i))),finish:DEFAULT_FINISH()});
 function normalize(s){
   const f=DEFAULT_FINISH(),g=s.finish||{};
   s.finish={walls:Object.assign(f.walls,g.walls),paper:Object.assign(f.paper,g.paper),floors:Object.assign(f.floors,g.floors),tv:g.tv||f.tv,mood:g.mood||f.mood,
@@ -48,7 +50,12 @@ function normalize(s){
     DEFAULT_ITEMS.filter(i=>i.type==='barStool').forEach(i=>s.items.push(withDefaults(Object.assign({lv:0},i))));
   }
   if(v<13&&!s.items.some(i=>i.type==='comicShelf'))s.items.push(withDefaults(Object.assign({lv:0},DEFAULT_ITEMS.find(i=>i.type==='comicShelf'))));
-  s.v=13;return s;
+  if(v<14&&!s.items.some(i=>i.type==='lowShelf'))s.items.push(withDefaults(Object.assign({lv:0},DEFAULT_ITEMS.find(i=>i.type==='lowShelf'))));
+  if(v<15&&!s.items.some(i=>i.type==='globeLamp'))s.items.push(withDefaults(Object.assign({lv:0},DEFAULT_ITEMS.find(i=>i.type==='globeLamp'))));
+  if(v<16)s.items.forEach(i=>{if(i.type==='besta'&&i.inch)i.inch=75;});
+  if(v<17)s.items.forEach(i=>{if(i.type==='builtIn'&&i.lv===0&&i.cz<400&&i.cx-i.width/2<199+10&&i.cx+i.width/2>199){i.width=180;i.cx=90;}});
+  if(v<18)s.items.forEach(i=>{if(i.type==='vanity'&&i.label.startsWith('빈티지 화장대')){i.label=i.label.replace('빈티지 화장대','잉글랜더 화장대');i.w='#c19d74';}});
+  s.v=18;return s;
 }
 const LS_CUR='duplex-deco:current',LS_SAVES='duplex-deco:saves';
 function loadCurrent(){try{const s=JSON.parse(localStorage.getItem(LS_CUR)||'null');if(s&&Array.isArray(s.items))return normalize(s);}catch(e){}return null;}
@@ -72,7 +79,7 @@ function localRects(it){
   }
   const [w,d]=dims(it);return[[-w/2,-d/2,w/2,d/2]];
 }
-function rotCS(it){const t=it.rot*Math.PI/180;return[Math.round(Math.cos(t)),Math.round(Math.sin(t))];}
+function rotCS(it){const t=it.rot*Math.PI/180,f=v=>Math.abs(v)<1e-9?0:v;return[f(Math.cos(t)),f(Math.sin(t))];}
 function worldRects(it){
   const [c,s]=rotCS(it);
   return localRects(it).map(([a,b,e,f])=>{
@@ -316,7 +323,7 @@ addEventListener('keydown',e=>{
   if(mod)return;
   if(sel&&(k==='delete'||k==='backspace')){e.preventDefault();removeSel();return;}
   if(k==='escape'){select(null);return;}
-  if(sel&&k==='r'){rotateSel();return;}
+  if(sel&&k==='r'){rotateSel(e.shiftKey?-15:15);return;}
   if(sel&&mode==='orbit'&&k.startsWith('arrow')){
     e.preventDefault();const st=e.shiftKey?20:5;
     nudgeSel(k==='arrowleft'?-st:k==='arrowright'?st:0,k==='arrowup'?-st:k==='arrowdown'?st:0);return;
@@ -475,7 +482,7 @@ function addItem(type){
   if(it.lv!==level)setLevel(it.lv);
   select(it.id);
 }
-function rotateSel(){const it=byId(sel);if(!it)return;commit();it.rot=(it.rot+90)%360;if(TYPES[it.type].wall)snapToWall(it,60);syncItem(it,false);refresh(true);}
+function rotateSel(step=90){const it=byId(sel);if(!it)return;commit();it.rot=((it.rot+step)%360+360)%360;if(TYPES[it.type].wall)snapToWall(it,60);syncItem(it,false);refresh(true);}
 function nudgeSel(dx,dz){const it=byId(sel);if(!it)return;commit();it.cx+=dx;it.cz+=dz;syncItem(it,false);refresh(true);}
 function removeSel(){const it=byId(sel);if(!it)return;commit();S.items=S.items.filter(i=>i!==it);removeGroup(it.id);select(null);}
 function duplicateSel(){
@@ -492,16 +499,16 @@ const rectS=(cls,a,b,c,d,extra)=>`<rect class="${cls}" x="${a}" y="${b}" width="
 (function planStatic(){
   let s='';
   s+=rectS('p-tile',0,0,740,720);
-  s+=rectS('p-wood',0,0,249,298)+rectS('p-wood',0,310,310,720)+rectS('p-bath',462,0,660,178)+rectS('p-entry',357,0,450,110);
-  s+=rectS('p-stair',261,0,345,230);
+  s+=rectS('p-wood',0,0,249,298)+rectS('p-wood',249,200,303,298)+rectS('p-wood',0,310,310,720)+rectS('p-bath',462,0,660,178)+rectS('p-entry',357,0,450,110);
+  s+=rectS('p-stair',261,0,345,STAIR.bottom);
   {const {x1,xm,x2,bottom,wind,top}=STAIR,east=(bottom-wind)/7,west=(top-wind)/6;
    for(let i=1;i<7;i++)s+=`<line class="p-stair" x1="${xm}" y1="${bottom-i*east}" x2="${x2}" y2="${bottom-i*east}"/>`;
    for(let j=1;j<6;j++)s+=`<line class="p-stair" x1="${x1}" y1="${wind+j*west}" x2="${xm}" y2="${wind+j*west}"/>`;
    s+=`<line class="p-stair" x1="${x1}" y1="${wind}" x2="${x2}" y2="${wind}"/><line class="p-stair" x1="${xm}" y1="${wind}" x2="${xm}" y2="${bottom}"/><line class="p-stair" x1="${xm}" y1="${wind}" x2="${xm}" y2="0"/>`;
-   s+=`<path class="p-stair" d="M324 222 L324 31 L282 31 L282 178 M274 164 L282 180 L290 164"/>`;}
+   s+=`<path class="p-stair" d="M324 194 L324 31 L282 31 L282 178 M274 164 L282 180 L290 164"/>`;}
   planFixed.forEach(f=>s+=rectS('p-fixed',f.x1,f.z1,f.x2,f.z2));
-  s+=rectS('p-fixed',600,4,658,52)+rectS('p-fixed',480,6,525,70)+rectS('p-fixed',705,190,740,365,'style="fill:none;stroke-dasharray:4 4"')+rectS('p-fixed',424,437,620,485,'style="fill:none;stroke-dasharray:4 4"');
-  s+=`<path class="p-door" d="M249 200 A96 96 0 0 0 153 296 L249 296"/><path class="p-door" d="M310 392 A86 86 0 0 0 224 478 L310 478"/><path class="p-door" d="M450 170 A70 70 0 0 1 380 100"/>`;
+  s+=rectS('p-fixed',600,4,658,52)+rectS('p-fixed',480,6,525,70)+rectS('p-fixed',705,190,740,365,'style="fill:none;stroke-dasharray:4 4"')+rectS('p-fixed',424,437,620,485,'style="fill:none;stroke-dasharray:4 4"')+rectS('p-fixed',424,381,620,429,'style="fill:none;stroke-dasharray:4 4"');
+  s+=`<path class="p-door" d="M303 290 A85 85 0 0 1 218 205 L303 205"/><path class="p-door" d="M310 392 A86 86 0 0 0 224 478 L310 478"/><path class="p-door" d="M450 170 A70 70 0 0 1 380 100"/>`;
   planWalls.forEach(w=>s+=rectS('p-wall',w.x1,w.z1,w.x2,w.z2));
   s+=rectS('p-wall',-20,720,0,738)+rectS('p-wall',740,720,760,738);
   s+=`<line class="p-win" x1="0" y1="728" x2="740" y2="728"/>`;
@@ -511,11 +518,11 @@ const rectS=(cls,a,b,c,d,extra)=>`<rect class="${cls}" x="${a}" y="${b}" width="
   s+=`<text class="p-label" x="200" y="455" text-anchor="middle">오피스 · 실1</text><text class="p-dim" x="200" y="478" text-anchor="middle">310 × 410</text>`;
   s+=`<text class="p-label" x="430" y="690" text-anchor="middle">거실</text><text class="p-dim" x="430" y="710" text-anchor="middle">415 × 235</text>`;
   s+=`<text class="p-small" x="560" y="296" text-anchor="middle">주방</text><text class="p-small" x="571" y="224" text-anchor="middle">키큰장</text><text class="p-small" x="650" y="374" text-anchor="middle">세탁기</text><text class="p-small" x="560" y="120" text-anchor="middle">욕실</text>`;
-  s+=`<text class="p-small" x="403" y="62" text-anchor="middle">현관</text><text class="p-small" x="303" y="250" text-anchor="middle">계단↑</text>`;
+  s+=`<text class="p-small" x="403" y="62" text-anchor="middle">현관</text><text class="p-small" x="257" y="330" text-anchor="middle">옷장</text><text class="p-small" x="303" y="250" text-anchor="middle">계단↑</text>`;
   s+=`<text class="p-small" x="740" y="242" text-anchor="end">다락 난간</text><text class="p-small" x="370" y="756" text-anchor="middle">창 (남향 전면창)</text>`;
   document.getElementById('pStatic0').innerHTML=s;
 
-  let t=rectS('p-tile',0,0,740,720)+rectS('p-void',325,250,740,720)+rectS('p-void',STAIR.x1,0,STAIR.x2,STAIR.top);
+  let t=rectS('p-tile',0,0,740,720)+rectS('p-void',325,250,740,720)+rectS('p-void',STAIR.x1,0,STAIR.x2,STAIR.top)+rectS('p-void',...OFFICE_TOP);
   LOFT.forEach(([a,b,c,d])=>t+=rectS('p-wood',a,b,c,d));
   CLOSED.forEach(([a,b,c,d])=>t+=rectS('p-fixed',a,b,c,d));
   {const [a,b,c,d]=LOW_CEIL;t+=rectS('p-fixed',a+12,b,c,d-10,'style="fill:none;stroke-dasharray:4 4"');}
@@ -526,7 +533,7 @@ const rectS=(cls,a,b,c,d,extra)=>`<rect class="${cls}" x="${a}" y="${b}" width="
   t+=`<polyline class="p-railS" points="325,298 325,250 740,250"/><polyline class="p-railS" points="303,190 345,190 345,42"/>`;
   t+=`<text class="p-label" x="125" y="140" text-anchor="middle">다락</text><text class="p-dim" x="125" y="164" text-anchor="middle">침실 위 248 × 298</text>`;
   t+=`<text class="p-label" x="500" y="128" text-anchor="middle">다락 · 천장 113cm</text><text class="p-dim" x="500" y="152" text-anchor="middle">289 × 190</text>`;
-  t+=`<text class="p-small" x="160" y="510" text-anchor="middle">막힌 공간 (오피스 위)</text>`;
+  t+=`<text class="p-small" x="160" y="500" text-anchor="middle">오피스 위 (공간 없음)</text><text class="p-small" x="160" y="522" text-anchor="middle">(아래층 오피스가 보여요)</text>`;
   t+=`<text class="p-small" x="532" y="480" text-anchor="middle">거실 위 오픈 공간</text><text class="p-small" x="532" y="502" text-anchor="middle">(아래층 거실이 보여요)</text>`;
   t+=`<text class="p-small" x="282" y="214" text-anchor="middle">계단↓</text><text class="p-small" x="370" y="756" text-anchor="middle">창 (남향 전면창)</text>`;
   const p1=document.getElementById('pStatic1');p1.innerHTML=t;p1.style.display='none';
@@ -550,6 +557,7 @@ function itemSVG(it){
   if(T.wall)extra+=`<line class="back" x1="${-w/2+2}" y1="${-d/2}" x2="${w/2-2}" y2="${-d/2}"/>`;
   if(it.type==='pinnacle'&&it.recl)extra+=`<line class="back" style="stroke-dasharray:4 4" x1="${-w/2+4}" y1="${-d/2+97}" x2="${w/2-4}" y2="${-d/2+97}"/>`;
   if(it.type==='desk')extra+=`<circle class="chair" cx="0" cy="${d/2+38}" r="26"/>`;
+  if(it.type==='vanity'&&it.stool)extra+=`<rect class="chair" x="-20" y="15.5" width="40" height="33" rx="4"/>`;
   if(it.type==='dining'){const [l,dt]=DINING[it.seats];extra+=`<rect class="detail" x="${-l*50}" y="${-dt*50}" width="${l*100}" height="${dt*100}" rx="2"/>`;}
   const cls=`it t-${it.type}${T.soft?' soft':''}${T.wall?' wallitem':''}${sel===it.id?' sel':''}${problemSet.has(it.id)?' bad':''}`;
   return `<g class="${cls}" data-id="${it.id}" transform="translate(${it.cx} ${it.cz}) rotate(${-it.rot})"><title>${esc(it.label)}</title>${shapeSVG(it)}${extra}</g>`;
@@ -617,7 +625,8 @@ function problems(){
   return list;
 }
 function frontInfo(it){
-  const t=it.rot*Math.PI/180,fx=Math.round(Math.sin(t)),fz=Math.round(Math.cos(t));
+  const t=it.rot*Math.PI/180,sn=Math.sin(t),cs=Math.cos(t),side=Math.abs(sn)>Math.abs(cs)+1e-9;
+  const fx=side?Math.sign(sn):0,fz=side?0:Math.sign(cs);
   const m=worldRects(it)[0],room=roomOf(m,it.lv);
   const edge=fx>0?m[2]:fx<0?m[0]:fz>0?m[3]:m[1];
   const perp=fx!==0?[m[1],m[3]]:[m[0],m[2]];
@@ -647,7 +656,7 @@ function metricsHTML(it){
     if(isFinite(f.d))h+=cell(`${it.type==='desk'?'의자 쪽 여유':'앞쪽 여유'} (${f.what})`,fmt(f.d),f.d<T.need?'neg':'good',true);
   }
   if(SOFA_TYPES.includes(it.type)){
-    const tv=firstOf('tv',it.lv)||firstOf('idanas',it.lv)||firstOf('besta',it.lv),f=frontInfo(it);
+    const tv=firstOf('tv',it.lv)||firstOf('idanas',it.lv)||firstOf('besta',it.lv)||firstOf('lian',it.lv),f=frontInfo(it);
     if(tv){const r=worldRects(tv)[0];const d=f.fx>0?r[0]-f.edge:f.fx<0?f.edge-r[2]:f.fz>0?r[1]-f.edge:f.edge-r[3];
       if(d>0){const inch=Math.round(d/2.54/1.3/5)*5;h+=cell('소파 앞 ↔ TV장',`${Math.round(d)}cm · 약 ${inch}인치까지`,'',true);}}
   }
@@ -676,14 +685,17 @@ function renderSel(){
     h+=`<div class="editor">
       <div class="selhead"><input class="namein" id="nameIn" value="${esc(it.label)}" aria-label="가구 이름" maxlength="24"><span class="dim" id="selDim">${w} × ${d}cm</span></div>
       <div class="row">
-        <button type="button" class="btn" data-act="rot">90° 회전</button>
+        <button type="button" class="btn" data-act="rot" data-v="15" aria-label="왼쪽으로 15도 회전">⟲ 15°</button>
+        <button type="button" class="btn" data-act="rot" data-v="-15" aria-label="오른쪽으로 15도 회전">⟳ 15°</button>
+        <button type="button" class="btn" data-act="rot" data-v="90">90° 회전</button>
         <button type="button" class="btn" data-act="nudge" data-dx="-5" data-dz="0" aria-label="왼쪽으로 5cm">←</button>
         <button type="button" class="btn" data-act="nudge" data-dx="5" data-dz="0" aria-label="오른쪽으로 5cm">→</button>
         <button type="button" class="btn" data-act="nudge" data-dx="0" data-dz="-5" aria-label="위로 5cm">↑</button>
         <button type="button" class="btn" data-act="nudge" data-dx="0" data-dz="5" aria-label="아래로 5cm">↓</button>
         <button type="button" class="btn" data-act="dup">복제</button>
         <button type="button" class="btn del" data-act="del">삭제</button>
-      </div>`;
+      </div>
+      <label class="slider"><span>회전</span><input type="range" data-rot min="0" max="359" step="1" value="${it.rot}"><output id="out-rot">${it.rot}°</output></label>`;
     (T.opts||[]).forEach(o=>{
       if(o.hide&&o.hide(it))return;
       const btns=o.bg
@@ -709,7 +721,7 @@ selEl.addEventListener('click',e=>{
   const s=e.target.closest('[data-sel]');if(s){select(s.dataset.sel);return;}
   const b=e.target.closest('[data-act]');if(!b)return;const it=byId(sel);const a=b.dataset.act;
   if(!it)return;
-  if(a==='rot')return rotateSel();
+  if(a==='rot')return rotateSel(+b.dataset.v||90);
   if(a==='nudge')return nudgeSel(+b.dataset.dx,+b.dataset.dz);
   if(a==='dup')return duplicateSel();
   if(a==='del')return removeSel();
@@ -721,6 +733,11 @@ selEl.addEventListener('click',e=>{
 });
 selEl.addEventListener('input',e=>{
   const it=byId(sel);if(!it)return;
+  if(e.target.dataset.rot!==undefined){
+    if(!liveCommitted){commit();liveCommitted=true;}
+    it.rot=+e.target.value;document.getElementById('out-rot').textContent=it.rot+'°';
+    syncItem(it,false);refresh(false);return;
+  }
   const k=e.target.dataset.range,ck=e.target.dataset.color;
   if(!k&&!ck)return;
   if(!liveCommitted){commit();liveCommitted=true;}
@@ -730,7 +747,7 @@ selEl.addEventListener('input',e=>{
 });
 selEl.addEventListener('change',e=>{
   if(e.target.id==='nameIn'){const it=byId(sel);const v=e.target.value.trim();if(it&&v&&v!==it.label){commit();it.label=v;}refresh(true);return;}
-  if(e.target.dataset.range||e.target.dataset.color){liveCommitted=false;refresh(true);}
+  if(e.target.dataset.range||e.target.dataset.color||e.target.dataset.rot!==undefined){liveCommitted=false;refresh(true);}
 });
 selEl.addEventListener('keydown',e=>{if(e.target.id==='nameIn'&&e.key==='Enter')e.target.blur();});
 

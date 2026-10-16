@@ -282,13 +282,106 @@ function beddingMat(k,c){
   }
   return m;
 }
-// period: metres covered by one tile; border: outer band and inner band colours framing the field
+/* ---------- whole-rug designs: one landscape canvas stretched over the rug (long side along x) ---------- */
+// strokes many short segments in a few colour batches; seg(g) adds one moveTo/lineTo pair
+function strokeBatch(g,n,styles,seg){
+  styles.forEach(([col,lw])=>{g.strokeStyle=col;g.lineWidth=lw;g.beginPath();for(let k=0;k<n/styles.length;k++)seg(g);g.stroke();});
+}
+// vintage millefleur: ochre, leafy green, turquoise-with-blue-scrolls and orange borders around a meadow of
+// white daisies, orange clusters and blue spikes on dark green
+function meadowRugTexture(){
+  return canvasTex(1024,768,(g,w,h)=>{
+    const ring=(i,col)=>{g.fillStyle=col;g.fillRect(i,i,w-2*i,h-2*i);};
+    const scatter=(a,b,n,fn)=>{for(let k=0;k<n;k++){const x=rnd()*w,y=rnd()*h,d=Math.min(x,y,w-x,h-y);if(d>=a&&d<b)fn(x,y);}};
+    const dot=(x,y,r,c)=>{g.fillStyle=c;g.beginPath();g.arc(x,y,r,0,7);g.fill();};
+    ring(0,'#c98d3e');
+    scatter(0,16,1800,(x,y)=>{g.fillStyle=['#f1d9a0','#a8452c','#e7b25a','#6b7a3a'][Math.floor(rnd()*4)];g.fillRect(x,y,2,2);});
+    ring(16,'#2f4a26');
+    scatter(16,56,3000,(x,y)=>dot(x,y,1+rnd()*1.6,rnd()<.5?(rnd()<.5?'rgba(230,214,170,.85)':'rgba(208,150,60,.85)'):'rgba(96,128,62,.7)'));
+    ring(56,'#e6c27a');ring(60,'#79bfc6');
+    scatter(60,102,1800,(x,y)=>{g.fillStyle=rnd()<.6?'rgba(240,232,210,.85)':'rgba(214,120,50,.85)';g.fillRect(x,y,2.5,2.5);});
+    scatter(66,96,110,(x,y)=>{g.strokeStyle='#2f5ca8';g.lineWidth=3;g.beginPath();const a=rnd()*6;g.arc(x,y,6+rnd()*5,a,a+3.5);g.stroke();dot(x+4,y-3,2.5,'#d79a3b');});
+    ring(102,'#d6762e');
+    scatter(102,110,700,(x,y)=>{g.fillStyle='#f3e3bd';g.fillRect(x,y,2,2);});
+    const f=110,fw=w-2*f,fh=h-2*f;
+    g.fillStyle='#41592c';g.fillRect(f,f,fw,fh);
+    g.save();g.beginPath();g.rect(f,f,fw,fh);g.clip();
+    g.filter='blur(18px)';
+    for(let k=0;k<70;k++)dot(f+rnd()*fw,f+rnd()*fh,30+rnd()*60,rnd()<.5?'rgba(28,48,22,.35)':'rgba(110,140,70,.25)');
+    g.filter='none';
+    strokeBatch(g,10000,[['rgba(70,110,45,.55)',1],['rgba(110,150,70,.45)',1],['rgba(30,55,25,.5)',1]],c=>{
+      const x=f+rnd()*fw,y=f+rnd()*fh;c.moveTo(x,y);c.lineTo(x+(rnd()-.5)*3,y-4-rnd()*8);});
+    const centers=[...Array(28)].map(()=>[f+rnd()*fw,f+rnd()*fh,rnd()]);
+    const pick=()=>{if(rnd()<.6){const c=centers[Math.floor(rnd()*centers.length)];return[c[0]+(rnd()+rnd()-1)*70,c[1]+(rnd()+rnd()-1)*50,c[2]];}return[f+rnd()*fw,f+rnd()*fh,rnd()];};
+    for(let k=0;k<2600;k++){
+      const [x,y,bias]=pick(),kind=(rnd()+bias)/2;
+      if(kind<.5){const r=2.2+rnd()*2.4,col=rnd()<.8?'#f1ebdf':'#efcfc2';
+        for(let p=0;p<5;p++){const a=p/5*6.28+rnd();dot(x+Math.cos(a)*r,y+Math.sin(a)*r,r*.6,col);}dot(x,y,r*.45,'#d9a640');}
+      else if(kind<.72){for(let p=0;p<4;p++)dot(x+(rnd()-.5)*6,y+(rnd()-.5)*6,1.6+rnd()*1.4,rnd()<.6?'#e08a2e':'#c8562a');}
+      else if(kind<.9){g.fillStyle=rnd()<.7?'#3d5fb3':'#5a78c4';for(let p=0;p<5;p++)g.fillRect(x+(rnd()-.5)*2,y-p*3,2.2,2.2);}
+      else dot(x,y,1.8,'#b2402e');
+    }
+    g.restore();
+    for(let y=0;y<h;y+=2){g.fillStyle=`rgba(0,0,0,${rnd()*.05})`;g.fillRect(0,y,w,1);}
+    g.filter='blur(50px)';for(let k=0;k<12;k++)dot(rnd()*w,rnd()*h,60+rnd()*90,'rgba(255,245,225,.07)');g.filter='none';
+  });
+}
+// terracotta wool pile with a ladder border: charcoal gaps between raised ribs running across the band;
+// the short ends carry the band full height, the long sides fill in between
+function rustRugTexture(){
+  return canvasTex(1024,768,(g,w,h)=>{
+    const b=Math.round(h*.1),P=26,gap=9;
+    g.fillStyle='#a4483a';g.fillRect(0,0,w,h);
+    g.fillStyle='#3b3634';
+    for(let y=P/2;y<h;y+=P){g.fillRect(0,y,b,gap);g.fillRect(w-b,y,b,gap);}
+    for(let x=b+P/2;x<w-b;x+=P){g.fillRect(x,0,gap,b);g.fillRect(x,h-b,gap,b);}
+    g.fillStyle='rgba(40,15,10,.25)';g.fillRect(b,b-2,w-2*b,2);g.fillRect(b,h-b,w-2*b,2);g.fillRect(b-2,b,2,h-2*b);g.fillRect(w-b,b,2,h-2*b);
+    strokeBatch(g,70000,[['rgba(205,112,88,.4)',1.3],['rgba(92,30,22,.35)',1.3],['rgba(180,85,64,.5)',1.1]],c=>{
+      const x=rnd()*w,y=rnd()*h,a=rnd()*6.28,l=2+rnd()*4;c.moveTo(x,y);c.quadraticCurveTo(x+Math.cos(a)*l,y+Math.sin(a)*l,x+Math.cos(a+1)*l,y+Math.sin(a+1)*l);});
+  });
+}
+// photo-real grass shag: dark sweeps through bright blades combed in a drifting direction, thin olive binding
+function grassRugTexture(){
+  return canvasTex(1024,768,(g,w,h)=>{
+    g.fillStyle='#2f641d';g.fillRect(0,0,w,h);
+    g.filter='blur(28px)';
+    for(let k=0;k<45;k++){g.fillStyle=rnd()<.5?'rgba(14,40,10,.5)':'rgba(96,160,44,.35)';g.beginPath();g.arc(rnd()*w,rnd()*h,40+rnd()*90,0,7);g.fill();}
+    for(let k=0;k<12;k++){
+      g.strokeStyle=`rgba(12,32,8,${.25+rnd()*.25})`;g.lineWidth=8+rnd()*24;g.beginPath();
+      let y=rnd()*h;const amp=20+rnd()*40,ph=rnd()*6;
+      for(let x=-60;x<=w+60;x+=30)g.lineTo(x,y+Math.sin(x*.008+ph)*amp+x*.12);
+      g.stroke();
+    }
+    g.filter='none';
+    const ang=(x,y)=>-.5+.35*Math.sin(y*.01+x*.004);
+    strokeBatch(g,48000,[['rgba(150,214,80,.55)',1.2],['rgba(96,170,50,.55)',1.3],['rgba(60,120,30,.6)',1.4],['rgba(22,60,14,.6)',1.4],['rgba(190,235,120,.45)',1]],c=>{
+      const x=rnd()*w,y=rnd()*h,l=6+rnd()*14,a=ang(x,y)+(rnd()-.5)*.6;c.moveTo(x,y);c.lineTo(x+Math.cos(a)*l,y+Math.sin(a)*l);});
+    g.strokeStyle='#76863c';g.lineWidth=10;g.strokeRect(5,5,w-10,h-10);
+  });
+}
+// tassel fringe: white strands along u (inner edge at u=0, ragged ends toward u=1), tinted by the material
+let _fringeTex=null;const _fringeMat={};
+function fringeMat(c){
+  if(!_fringeMat[c]){
+    if(!_fringeTex)_fringeTex=canvasTex(64,64,(g,w,h)=>{
+      g.clearRect(0,0,w,h);g.strokeStyle='#ffffff';g.lineCap='round';
+      for(let i=0;i<8;i++){const y=(i+.5)*h/8,l=w*(.75+rnd()*.25);g.lineWidth=2.5+rnd();g.beginPath();g.moveTo(0,y);g.quadraticCurveTo(l*.5,y+(rnd()-.5)*4,l,y+(rnd()-.5)*5);g.stroke();}
+    },true);
+    _fringeMat[c]=new THREE.MeshStandardMaterial({map:_fringeTex,color:lin(c),alphaTest:.4,side:THREE.DoubleSide,roughness:1});
+  }
+  return _fringeMat[c];
+}
+// period: metres covered by one tile; border: outer band and inner band colours framing the field;
+// whole: the texture covers the rug once; fringe: tassel colour on the short ends
 const RUG_PATTERNS={
   kilim:{name:'킬림 스트라이프',period:1.0,make:kilimTexture},
   blueStripe:{name:'블루 스트라이프',period:1.2,make:blueStripeTexture},
   linen:{name:'린넨 위브',period:.3,tint:true,make:linenTexture},
   floral:{name:'플로럴 프린트',period:.35,border:['#a7b4a5','#e4dccb'],make:floralTexture},
   boucle:{name:'부클 텍스처',period:.25,tint:true,bump:.05,make:boucleTexture},
+  meadow:{name:'들꽃 정원',whole:true,fringe:'#b9b2a6',make:meadowRugTexture},
+  rustBorder:{name:'테라코타 보더',whole:true,fringe:'#ebe4d6',bump:.03,make:rustRugTexture},
+  grass:{name:'잔디',whole:true,bump:.04,make:grassRugTexture},
 };
 const _rugTex={},_rugMat=new Map();
 function rugTex(k){return _rugTex[k]||(_rugTex[k]=RUG_PATTERNS[k].make());}

@@ -92,6 +92,37 @@ function duvetGeo(mw,zHead,zFoot,top,hang,r){
   }
   geo.computeVertexNormals();return geo;
 }
+// one face of a square throw pillow (half width hw, full thickness th): puffed to the seam,
+// mid-edges drawn in so the corners poke out, and a soft dent where it has been leaned on
+function pillowGeo(hw,th,front,r,hh){
+  hh=hh||hw;
+  const g=new THREE.PlaneGeometry(2,2,28,28);if(!front)g.rotateY(Math.PI);
+  const p=g.attributes.position,s=front?1:-1,dent=.6+r()*.4,ph=r()*6;
+  for(let i=0;i<p.count;i++){
+    const u=p.getX(i),v=p.getY(i),cu=Math.cos(u*Math.PI/2),cv=Math.cos(v*Math.PI/2);
+    let t=th/2*Math.pow(Math.max(0,cu*cv),.55);
+    t*=1-.12*dent*Math.exp(-(u*u+v*v)/.15);
+    t+=.004*Math.sin(u*9+ph)*Math.sin(v*7+ph)*cu*cv;
+    p.setXYZ(i,u*hw*(1-.06*cv),v*hh*(1-.06*cu),s*t);
+  }
+  g.computeVertexNormals();return g;
+}
+// w x h pillow (metres) standing in its own XY plane, front +z, with a piped seam around the edge
+function throwPillow(w,h,th,mat,pipe,seed){
+  const grp=new THREE.Group(),hw=w/2,hh=h/2;
+  for(const front of [true,false]){
+    const m=new THREE.Mesh(pillowGeo(hw,th,front,seeded(seed+(front?0:7)),hh),mat);
+    tileUV(m,w/.3,h/.3);m.castShadow=m.receiveShadow=true;grp.add(m);
+  }
+  const pts=[],n=16,P=Math.PI/2;
+  for(let i=0;i<n;i++){const v=1-2*i/n;pts.push(new THREE.Vector3(hw*(1-.06*Math.cos(v*P)),v*hh,0));}
+  for(let i=0;i<n;i++){const u=-1+2*i/n;pts.push(new THREE.Vector3(u*hw,-hh*(1-.06*Math.cos(u*P)),0));}
+  for(let i=0;i<n;i++){const v=-1+2*i/n;pts.push(new THREE.Vector3(-hw*(1-.06*Math.cos(v*P)),v*hh,0));}
+  for(let i=0;i<n;i++){const u=1-2*i/n;pts.push(new THREE.Vector3(u*hw,hh*(1-.06*Math.cos(u*P)),0));}
+  const tube=new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts,true),128,.005,6,true),pipe);
+  tube.castShadow=true;grp.add(tube);
+  return grp;
+}
 const _cordMat={};let _cordTex=null;
 function cordMat(c){
   if(!_cordMat[c]){
@@ -105,6 +136,12 @@ let lampGlow=.6;
 function shadeMat(c){
   const k='lamp|'+c;let m=MAT_CACHE.get(k);
   if(!m){m=new THREE.MeshStandardMaterial({color:lin(c),emissive:lin('#ffdca0'),emissiveIntensity:lampGlow,roughness:1});MAT_CACHE.set(k,m);emissiveMats.add(m);}
+  return m;
+}
+// cased opal glass that glows in its own colour with the lamp mood
+function globeMat(c){
+  const k='globe|'+c;let m=MAT_CACHE.get(k);
+  if(!m){m=new THREE.MeshStandardMaterial({color:lin(c),emissive:lin(c),emissiveIntensity:lampGlow,roughness:.3});MAT_CACHE.set(k,m);emissiveMats.add(m);}
   return m;
 }
 // washi lantern: fine horizontal ribs and a few vertical seams, glowing with the lamp mood
@@ -162,10 +199,45 @@ function chevronMat(){
   return _chevronMat;
 }
 // thin cylinder between two points
-function rod(g,a,b,r,mat){
-  const d=new THREE.Vector3().subVectors(b,a),m=new THREE.Mesh(new THREE.CylinderGeometry(r,r,d.length(),8),mat);
+function rod(g,a,b,r,mat,ra){
+  const d=new THREE.Vector3().subVectors(b,a),m=new THREE.Mesh(new THREE.CylinderGeometry(r,ra??r,d.length(),8),mat);
   m.position.copy(a).addScaledVector(d,.5);m.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),d.normalize());
   m.castShadow=true;g.add(m);return m;
+}
+// TV standing on a cabinet top at height top
+function tvSet(g,inch,top){
+  if(inch===75){
+    // 75" (189cm) set: 166.9 x 96.3 panel, 102.6 tall on two splayed feet 129.9 apart and 36.1 deep
+    const V=(x,y,z)=>new THREE.Vector3(x,y,z),feet=MC('#232425',.45,{metalness:.3}),lift=.063,z=-.03;
+    for(const s of [-1,1]){
+      const x=s*.6,tip=s*.6495;
+      rod(g,V(x,top+lift,z),V(tip,top+.008,z+.18),.009,feet);
+      rod(g,V(x,top+lift,z),V(x-s*.045,top+.008,z-.18),.009,feet);
+      add(g,.05,.02,.03,feet,x,top+lift-.01,z);
+    }
+    add(g,1.669,.963,.025,screenMat,0,top+lift,z);
+    add(g,1.669,.012,.027,MC('#2a2b2d',.4),0,top+lift,z);
+    add(g,1.1,.55,.045,MC('#1b1c1e',.6),0,top+lift+.05,z-.035);
+  }else if(inch){
+    const sw=inch*.02214,sh=sw*.5625;
+    add(g,.32,.015,.2,metalMat,0,top,-.05);add(g,.06,.1,.04,metalMat,0,top+.015,-.08);
+    add(g,sw,sh+.02,.045,screenMat,0,top+.09,-.07);
+  }
+}
+// long horizontal grain over the given colour; one texture spans each box face
+function grainMat(c){
+  const k='grain|'+c;let m=MAT_CACHE.get(k);
+  if(!m){
+    const t=canvasTex(512,128,(g,w,h)=>{
+      g.fillStyle='#fff';g.fillRect(0,0,w,h);
+      for(let i=0;i<60;i++){
+        const y=rnd()*h;g.strokeStyle=rnd()<.6?`rgba(70,42,20,${.06+rnd()*.12})`:`rgba(255,238,215,${.05+rnd()*.1})`;g.lineWidth=.6+rnd()*2.2;
+        g.beginPath();g.moveTo(0,y);g.bezierCurveTo(w*.3,y+rnd()*8-4,w*.7,y+rnd()*8-4,w,y+rnd()*6-3);g.stroke();
+      }
+    });
+    m=new THREE.MeshStandardMaterial({color:lin(c),map:t,roughness:.62});MAT_CACHE.set(k,m);
+  }
+  return m;
 }
 const mirrorMat=MC('#d9e2e6',.08,{metalness:.6});
 const BOOKS=['#8a644b','#5d7186','#c9a663','#b5806a','#e6dfd1','#3d4045','#8d9c86','#a9806a','#d8cfc0','#6f7378'];
@@ -447,12 +519,12 @@ const TYPES={
       }
     }},
   besta:{label:'BESTÅ TV장',cat:'living',desc:'IKEA · 180 × 42 · 높이 38 · 도어 3',need:60,
-    defaults:{body:'#2f2a26',door:'slatOak',dc:'#2f2a26',mount:'wall',inch:65},dims:()=>[180,42],
+    defaults:{body:'#2f2a26',door:'slatOak',dc:'#2f2a26',mount:'wall',inch:75},dims:()=>[180,42],
     opts:[{k:'door',label:'도어',choices:[['slatOak','비외르쾨비켄 오크'],['slatLight','비외르쾨비켄 화이트오크'],['slatBrown','비외르쾨비켄 브라운'],['chevron','헤데비켄 오크'],['flat','라프비켄 단색'],['glass','글라스비크 유리']]},
       {k:'dc',label:'도어 색',hide:it=>it.door!=='flat',choices:BESTA_COLORS,bg:v=>`background:${v}`},
       {k:'body',label:'본체 색',choices:BESTA_COLORS.slice(0,4),bg:v=>`background:${v}`},
       {k:'mount',label:'설치',choices:[['wall','벽걸이'],['legs','다리'],['floor','바닥']]},
-      {k:'inch',label:'TV',choices:[[0,'없음'],[55,'55"'],[65,'65"'],[75,'75"']]}],
+      {k:'inch',label:'TV',choices:[[0,'없음'],[55,'55"'],[65,'65"'],[75,'75" · 166.9 × 96.3']]}],
     build(it,g){
       // IKEA BESTÅ 180 x 42 x 38: carcass with three 60cm doors, floating, on legs or on the floor
       const W=1.8,D=.42,H=.38,y0=it.mount==='wall'?.3:it.mount==='legs'?.12:0,body=MC(it.body,.55);
@@ -473,11 +545,22 @@ const TYPES={
           add(g,dw,dh,.008,MC('#1b1d1f',.08,{transparent:true,opacity:.7}),x,y,zf+.004);
         }else add(g,dw,dh,.018,MC(it.dc,.5),x,y,zf+.009);
       }
-      if(it.inch){
-        const sw=it.inch*.02214,sh=sw*.5625,top=y0+H;
-        add(g,.32,.015,.2,metalMat,0,top,-.05);add(g,.06,.1,.04,metalMat,0,top+.015,-.08);
-        add(g,sw,sh+.02,.045,screenMat,0,top+.09,-.07);
-      }
+      tvSet(g,it.inch,y0+H);
+    }},
+  lian:{label:'리안 TV장',cat:'living',desc:'210 × 39.5 · 높이 30 · 서랍 4',need:60,
+    defaults:{w:'#8a6447',inch:75},dims:()=>[210,40],
+    slots:[{k:'w',role:'wood',label:'나무'}],
+    opts:[{k:'inch',label:'TV',choices:[[0,'없음'],[55,'55"'],[65,'65"'],[75,'75" · 166.9 × 96.3']]}],
+    build(it,g){
+      // 리안 2100: 15cm drawer body on 15cm splayed brass legs, four handle-less drawers under an 18mm top
+      const W=2.1,D=.395,y0=.15,T=.018,wood=grainMat(it.w),dark=MC(shade(it.w,-.55),.8);
+      const brass=MC('#cfae6e',.32,{metalness:.55}),V=(x,y,z)=>new THREE.Vector3(x,y,z);
+      for(const a of [-1,1])for(const c of [-1,1])rod(g,V(a*.64+a*.025,0,c*(D/2-.075)+c*.045),V(a*.64,y0,c*(D/2-.075)),.012,brass,.005);
+      add(g,W-.01,.15-T,D-.03,dark,0,y0,-.015);
+      add(g,W,T,D,wood,0,y0+.15-T,0);
+      const gap=.004,dw=(W-gap*3)/4,dh=.15-T-.006;
+      for(let i=0;i<4;i++)add(g,dw,dh,.018,wood,-W/2+dw/2+i*(dw+gap),y0,D/2-.009);
+      tvSet(g,it.inch,y0+.15);
     }},
   sideboard:{label:'수납장',cat:'living',need:60,
     defaults:{width:160,w:'#c4a47c'},dims:it=>[it.width,40],
@@ -505,17 +588,23 @@ const TYPES={
       const tiled=(sw,sd,h,y)=>tileUV(slab(sw,sd,h,rugMat(it.pat,it.c),y),sw/P.period,sd/P.period);
       let parts;
       if(!P)parts=[slab(w,d,.012,MC(it.c,1),.004),slab(w-.16,d-.16,.003,MC(shade(it.c,.12),1),.014)];
+      else if(P.whole)parts=[slab(w,d,.012,rugMat(it.pat,it.c),.004)];
       else if(P.border)parts=[slab(w,d,.012,MC(P.border[0],1),.004),slab(w-.1,d-.1,.003,MC(P.border[1],1),.014),tiled(w-.16,d-.16,.003,.0145)];
       else parts=[tiled(w,d,.012,.004)];
+      if(P&&P.fringe&&!round)for(const s of [-1,1]){
+        const f=new THREE.Mesh(new THREE.PlaneGeometry(.07,d-.02),fringeMat(P.fringe));
+        f.rotation.set(-Math.PI/2,0,s<0?Math.PI:0);f.position.set(s*(w/2+.034),.006,0);tileUV(f,1,(d-.02)/.05);g.add(f);parts.push(f);
+      }
       parts.forEach(m=>m.castShadow=false);
     }},
 
   /* ----- 침실 ----- */
   bed:{label:'침대',cat:'bedroom',need:60,
-    defaults:{size:160,c:'#f5f3ee',w:'#8b5a3c',pat:'seer'},dims:it=>[it.size+10,215],
+    defaults:{size:160,c:'#f5f3ee',w:'#8b5a3c',pat:'seer',pil:'#cbbfae'},dims:it=>[it.size+10,215],
     slots:[{k:'c',role:'bedding',label:'이불',hide:it=>it.pat==='stripe'},{k:'w',role:'wood',label:'프레임'}],
     opts:[{k:'size',label:'매트리스',choices:[[110,'슈퍼싱글'],[150,'퀸'],[160,'킹'],[180,'라지킹']]},
-      {k:'pat',label:'이불',choices:Object.entries(BEDDING).map(([k,p])=>[k,p.name])}],
+      {k:'pat',label:'이불',choices:Object.entries(BEDDING).map(([k,p])=>[k,p.name])},
+      {k:'pil',label:'베개 (린넨)',choices:[['#cbbfae','내추럴'],['#4a4038','다크 브라운'],['#efd2cd','블러시 핑크'],['#f3f1ec','화이트'],['#9aa58f','세이지']],bg:v=>`background:${v}`}],
     build(it,g){
       // low platform without a headboard: dark recessed plinth, thin wood frame, puffy duvet and flat pillows
       const mw=cm(it.size),W=mw+.1,L=2.1,fr=MC(it.w,.6),duv=beddingMat(it.pat,it.c),r=seeded(hashStr(it.id));
@@ -527,10 +616,14 @@ const TYPES={
       const d=new THREE.Mesh(duvetGeo(mw,-.5,1.0,.4,.25,r),duv);
       d.castShadow=d.receiveShadow=true;d.rotation.y=(r()-.5)*.02;g.add(d);
       wrinkle(soft(g,mw+.12,.09,.26,duv,0,.38,-.43,.05,.03),.008,r);
-      const np=mw>1.3?2:1;
+      // linen pillow sets: a 55 square leaning back toward the wall with a 50 x 30 lumbar propped in front
+      const pm=rugMat('linen',it.pil),pipe=MC(shade(it.pil,-.12),.9),np=mw>1.3?2:1,seed=hashStr(it.id);
       for(let k=0;k<np;k++){
-        const p=soft(g,mw/np-.1,.15,.5,duv,np===1?0:(k?1:-1)*mw/4,.36,-.75,.07,.05);
-        p.rotation.set(.1,(r()-.5)*.1,(r()-.5)*.04);
+        const x=np===1?0:(k?1:-1)*mw/4;
+        const sq=throwPillow(.55,.55,.15,pm,pipe,seed+k*31);
+        sq.rotation.set(-.3,(r()-.5)*.08,(r()-.5)*.04);sq.position.set(x,.36+.275*Math.cos(.3)*.96,-.86);g.add(sq);
+        const lu=throwPillow(.5,.3,.12,pm,pipe,seed+k*31+13);
+        lu.rotation.set(-.38,(r()-.5)*.1,(r()-.5)*.05);lu.position.set(x+(r()-.5)*.03,.36+.15*Math.cos(.38)*.96,-.656);g.add(lu);
       }
     }},
   nightstand:{label:'협탁',cat:'bedroom',
@@ -614,17 +707,52 @@ const TYPES={
       add(sub,.55,1.7,.03,MC(it.w,.6),0,0,0);
       add(sub,.49,1.64,.01,mirrorMat,0,.03,.016);
     }},
-
+  vanity:{label:'잉글랜더 화장대',cat:'bedroom',desc:'60 × 40 · 높이 125 · 슬라이딩 거울 · 스툴',need:60,
+    defaults:{w:'#c19d74',stool:1},dims:()=>[60,40],
+    slots:[{k:'w',role:'wood',label:'바디'}],
+    opts:[{k:'stool',label:'스툴',choices:[[1,'포함'],[0,'없음']]}],
+    build(it,g){
+      // 600 x 400 x 1250: two-drawer box (250) on 500 splayed pine legs, 150-deep hutch with a 395 x 465 sliding mirror and a 175 shelf bay
+      const W=.6,D=.4,t=.016,yb=.5,yt=.75,wood=grainMat(it.w),dark=MC(shade(it.w,-.55),.85),pine=MC('#d8b98a',.6);
+      const V=(x,y,z)=>new THREE.Vector3(x,y,z);
+      for(const a of [-1,1])for(const c of [-1,1])rod(g,V(a*.255,0,c*.175),V(a*.23,yb,c*.15),.019,pine,.013);
+      add(g,W,t,D,wood,0,yb,0);add(g,W,.018,D,wood,0,yt-.018,0);
+      for(const s of [-1,1])add(g,t,yt-yb-.034,D,wood,s*(W/2-t/2),yb+t,0);
+      add(g,W-2*t,yt-yb-.034,.006,wood,0,yb+t,-D/2+.003);
+      add(g,W-2*t,yt-yb-.034,.01,dark,0,yb+t,D/2-.03);
+      add(g,W-2*t-.004,.094,.016,wood,0,yb+t+.004,D/2-.009);
+      add(g,W-2*t-.004,.094,.016,wood,0,yt-.018-.098,D/2-.009);
+      const hz=-D/2+.075,hb=yt,ht=1.25;
+      for(const s of [-1,1])add(g,t,ht-hb,.15,wood,s*(W/2-t/2),hb,hz);
+      add(g,W,t,.15,wood,0,ht-t,hz);add(g,W-2*t,t,.15,wood,0,hb,hz);
+      add(g,W-2*t,ht-hb-t,.006,wood,0,hb,-D/2+.003);
+      const dx=W/2-.175;
+      add(g,t,ht-hb-2*t,.15,wood,dx+t/2,hb+t,hz);
+      add(g,.175-1.5*t,t,.15-.006,wood,dx+.175/2,ht-.15-t,hz+.003);
+      const mx=(-W/2+dx)/2;
+      add(g,.43,.48,.018,wood,mx,hb+.004,hz+.084);
+      add(g,.395,.465,.004,mirrorMat,mx,hb+.011,hz+.095);
+      if(it.stool){
+        // matching box stool with an open front and a white padded seat
+        const sz=.32,sw=.4,sd=.33,sh=.39;
+        add(g,sw,t,sd,wood,0,0,sz);
+        for(const s of [-1,1])add(g,t,sh-t,sd,wood,s*(sw/2-t/2),t,sz);
+        add(g,sw-2*t,sh-t,t,wood,0,t,sz-sd/2+t/2);
+        add(g,sw-2*t,.1,t,wood,0,t,sz+sd/2-t/2);add(g,sw-2*t,.11,t,wood,0,sh-.11,sz+sd/2-t/2);
+        add(g,sw,t,sd,wood,0,sh-t,sz);
+        soft(g,sw+.01,.065,sd+.01,MC('#f1eee8',.85),0,sh,sz,.02,.01);
+      }
+    }},
   /* ----- 오피스·수납 ----- */
-  desk:{label:'데스크',cat:'work',desc:'160×80 · 의자 포함',need:75,
-    defaults:{h:74,w:'#e2ddd4',c:'#3f4347'},dims:()=>[160,80],
+  desk:{label:'데스크',cat:'work',desc:'140×80 · 의자 포함',need:75,
+    defaults:{h:74,w:'#e2ddd4',c:'#3f4347'},dims:()=>[140,80],
     slots:[{k:'w',role:'top',label:'상판'},{k:'c',role:'chair',label:'의자'}],
     sliders:[{k:'h',label:'높이',min:60,max:124,step:1}],
     build(it,g){
       const h=it.h/100,top=MC(it.w,.6),chair=MC(it.c,.9);
-      add(g,1.6,.03,.8,top,0,h-.03,0);
-      [-.62,.62].forEach(x=>{add(g,.07,h-.06,.07,metalMat,x,.03,0);add(g,.07,.03,.72,metalMat,x,0,0);});
-      add(g,1.24,.04,.04,metalMat,0,h-.08,-.2);
+      add(g,1.4,.03,.8,top,0,h-.03,0);
+      [-.52,.52].forEach(x=>{add(g,.07,h-.06,.07,metalMat,x,.03,0);add(g,.07,.03,.72,metalMat,x,0,0);});
+      add(g,1.04,.04,.04,metalMat,0,h-.08,-.2);
       add(g,.05,.12,.05,metalMat,0,h,-.25);add(g,.22,.01,.16,metalMat,0,h,-.25);
       add(g,.62,.37,.025,screenMat,0,h+.1,-.22);
       add(g,.42,.015,.13,MC('#dcdcd8'),0,h,.12);
@@ -712,6 +840,66 @@ const TYPES={
         const y=P.pot+.05+(P.h-P.pot-rad)*(it.size==='l'?.45+rr()*.55:.15+rr()*.85);
         const m=new THREE.Mesh(new THREE.IcosahedronGeometry(rad,0),MC(GREENS[Math.floor(rr()*GREENS.length)],.9,{flatShading:true}));
         m.position.set(Math.cos(a)*d,y,Math.sin(a)*d);m.scale.y=1.25;m.rotation.set(rr()*3,rr()*3,0);m.castShadow=true;g.add(m);
+      }
+    }},
+  cushion:{label:'쿠션',cat:'deco',desc:'코지 스로우 필로우 · 45~60',
+    defaults:{c:'#bba88f',mat:'boucle',size:50,pose:'lean'},
+    dims:it=>{const a=.25,hw=it.size/2,th=it.size/2.8;return it.pose==='flat'?[it.size,it.size]:[it.size,Math.round(2*(hw*Math.sin(a)+th/2))];},
+    slots:[{k:'c',role:'fabric',label:'패브릭',hide:it=>it.mat==='stripe'}],
+    opts:[{k:'mat',label:'소재',choices:[['boucle','부클'],['velvet','벨벳'],['linen','워시드 린넨'],['cord','코듀로이'],['stripe','스트라이프 린넨']]},
+      {k:'size',label:'크기',choices:[[45,'45'],[50,'50'],[60,'60']]},
+      {k:'pose',label:'놓기',choices:[['lean','기대 세우기'],['flat','눕히기']]}],
+    build(it,g){
+      const a=.25,hw=it.size/200,th=it.size/280,r=seeded(hashStr(it.id));
+      const mat=it.mat==='boucle'?rugMat('boucle',it.c):it.mat==='velvet'?MC(it.c,.5):it.mat==='cord'?cordMat(it.c)
+        :it.mat==='stripe'?beddingMat('stripe',it.c):MC(it.c,.95);
+      const sc=it.mat==='boucle'?it.size/25:it.mat==='stripe'||it.mat==='cord'?it.size/200:1;
+      const pil=new THREE.Group();g.add(pil);
+      for(const front of [true,false]){
+        const m=new THREE.Mesh(pillowGeo(hw,th,front,seeded(hashStr(it.id)+(front?0:7))),mat);
+        tileUV(m,sc,sc);m.castShadow=m.receiveShadow=true;pil.add(m);
+      }
+      if(it.pose==='flat'){pil.rotation.set(-Math.PI/2,0,(r()-.5)*.5);pil.position.y=th*.45;}
+      else{pil.rotation.set(-a,0,(r()-.5)*.08);pil.position.y=hw*Math.cos(a)*.97;}
+    }},
+  lowShelf:{label:'낮은 책장',cat:'deco',desc:'롱 로우 오픈 책장 · 깊이 38 · 높이 48',need:40,
+    defaults:{len:240,c:'#4a2c1e',books:1,deco:1},dims:it=>[it.len,38],
+    slots:[{k:'c',role:'wood',label:'나무'}],
+    opts:[{k:'len',label:'길이',choices:[[180,'180'],[240,'240'],[300,'300']]},
+      {k:'books',label:'책',choices:[[1,'채우기'],[0,'비우기']]},
+      {k:'deco',label:'위 소품',choices:[[1,'액자 · 책'],[0,'없음']]}],
+    build(it,g){
+      // dark wood box on a recessed plinth: thick top, open bays split by thin dividers, filled mostly with pale paperbacks
+      const L=cm(it.len),D=.38,H=.48,P=.06,t=.025,wood=MC(it.c,.55),inner=MC(shade(it.c,-.25),.7),r=seeded(hashStr(it.id));
+      add(g,L-.08,P,D-.08,MC(shade(it.c,-.5),.8),0,0,-.01);
+      add(g,L,.03,D,wood,0,H-.03,0);
+      add(g,L,t,D,wood,0,P,0);
+      for(const s of [-1,1])add(g,t,H-P-.03,D,wood,s*(L/2-t/2),P,0);
+      add(g,L-2*t,H-P-.03-t,.01,inner,0,P+t,-D/2+.005);
+      const n=Math.max(3,Math.round(it.len/60)),bw=(L-2*t-(n-1)*.02)/n,y0=P+t,bh=H-.03-y0;
+      for(let i=1;i<n;i++)add(g,.02,bh,D-.01,wood,-L/2+t+i*bw+(i-.5)*.02,y0,.005);
+      const paper=['#f1ede4','#ece6da','#f6f3ec','#e4ddd0','#d9d2c4','#efe9de'],accent=['#7a3b2e','#2f3a4a','#c8a46a','#3d4a3a','#9c8a72'];
+      const bookMat=()=>MC(r()<.85?paper[Math.floor(r()*paper.length)]:accent[Math.floor(r()*accent.length)],.8);
+      if(it.books)for(let i=0;i<n;i++){
+        const x0=-L/2+t+i*(bw+.02),kind=r();
+        if(kind<.18){
+          let y=y0;for(let k=0;k<5+Math.floor(r()*4);k++){const h=.018+r()*.012;add(g,.2+r()*.04,h,.2+r()*.04,bookMat(),x0+bw/2+(r()-.5)*.02,y,.04+(r()-.5)*.02);y+=h;}
+          continue;
+        }
+        if(kind<.26){add(g,.22,.09,.16,MC('#2b2724',.6),x0+bw/2,y0,.04);add(g,.3,.05,.2,MC('#3a3632',.6),x0+bw/2,y0+.09,.03);continue;}
+        const fill=.55+r()*.4,left=r()<.5;let x=left?x0+.01:x0+bw-.01,used=0;
+        while(used<bw*fill){
+          const th=.012+r()*.025,h=Math.min(bh-.02,.2+r()*.1),dp=.15+r()*.06;
+          add(g,th,h,dp,bookMat(),left?x+th/2:x-th/2,y0,D/2-dp/2-.03);
+          x+=left?th+.001:-th-.001;used+=th+.001;
+        }
+        if(used<bw*.8&&r()<.6){const th=.02,h=.24,b=add(g,th,h,.18,bookMat(),left?x+.05:x-.05,y0,D/2-.12);b.rotation.z=(left?1:-1)*.35;b.position.y=y0+h/2*.95;}
+      }
+      if(it.deco){
+        const frame=(w,h,x,c)=>{const f=add(g,w,h,.02,MC('#1f1d1b',.5),x,H,-D/2+.06);f.rotation.x=-.12;
+          const a=new THREE.Mesh(new THREE.PlaneGeometry(w-.03,h-.03),MC(c,.9));a.position.set(0,0,.011);f.add(a);};
+        frame(.32,.32,-L/2+.45,'#3b3b3e');frame(.28,.28,-L/2+.72,'#9ec3c9');
+        let y=H;for(let k=0;k<3;k++){const h=.03;add(g,.24,h,.17,bookMat(),L/2-.3+(r()-.5)*.02,y,0);y+=h;}
       }
     }},
   comicShelf:{label:'만화책 책장',cat:'deco',desc:'슬라이딩 3열 · 57 × 48 · 높이 100',need:50,
@@ -813,6 +1001,26 @@ const TYPES={
       ball.scale.y=.78;ball.position.y=y0+hh;g.add(ball);
       cyl(g,R*.32,R*.32,.022,MC('#c9a271',.6),0,y0+2*hh-.012,0,32);
       cyl(g,.004,.004,2*hh+.22*k,leg,0,y0,0,6);
+    }},
+  globeLamp:{label:'글로브 램프',cat:'deco',round:it=>it.stand!=='table',desc:'주황 오팔 유리 구 조명',
+    defaults:{d:40,c:'#ff8a3d',stand:'table'},
+    dims:it=>{const s=it.stand==='table'?Math.max(42,it.d+4):it.d;return[s,s];},
+    opts:[{k:'d',label:'지름',choices:[[30,'30'],[40,'40'],[50,'50']]},
+      {k:'c',label:'유리 색',choices:[['#ff8a3d','오렌지'],['#ffb347','앰버'],['#f6efe4','오팔 화이트']],bg:v=>`background:${v}`},
+      {k:'stand',label:'놓기',choices:[['table','사이드 테이블'],['floor','바닥'],['shelf','낮은 책장 위']]}],
+    build(it,g){
+      // glowing glass globe on a small dark cup base; optionally on a thin brushed-metal side table or at low-shelf height
+      const R=it.d/200,tw=Math.max(.42,2*R+.04);
+      let y=it.stand==='shelf'?.48:0;
+      if(it.stand==='table'){
+        const metal=MC('#b9b7b2',.35,{metalness:.6}),h=.42;
+        for(const sx of [-1,1])for(const sz of [-1,1])add(g,.015,h-.012,.015,metal,sx*(tw/2-.02),0,sz*(tw/2-.02));
+        add(g,tw,.012,tw,metal,0,h-.012,0);
+        y=h;
+      }
+      cyl(g,R*.32,R*.4,.025,MC('#2a2725',.5),0,y,0,24);
+      const ball=new THREE.Mesh(new THREE.SphereGeometry(R,40,28),globeMat(it.c));
+      ball.position.y=y+.02+R*.98;g.add(ball);
     }},
   art:{label:'액자',cat:'deco',soft:true,wall:true,desc:'가까운 벽에 붙어요',
     defaults:{width:90,c:'#d9a77f',w:'#2f2c2a'},dims:it=>[it.width,4],
