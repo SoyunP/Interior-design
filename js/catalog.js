@@ -243,6 +243,9 @@ const mirrorMat=MC('#d9e2e6',.08,{metalness:.6});
 const BOOKS=['#8a644b','#5d7186','#c9a663','#b5806a','#e6dfd1','#3d4045','#8d9c86','#a9806a','#d8cfc0','#6f7378'];
 const GREENS=['#5e7d4c','#6f8f58','#4f6d42','#7c9a62','#587a46'];
 const PLANT={s:{d:35,h:.75,pot:.28},m:{d:50,h:1.2,pot:.38},l:{d:70,h:1.8,pot:.48}};
+// mattress width x length in cm; the frame adds 10 to each
+const BED_SIZES={Q:[151,201,'퀸'],EK:[191,201,'이스턴 킹'],CK:[181,211,'캘리 킹']};
+const bedSize=it=>BED_SIZES[it.size]||BED_SIZES.EK;
 function rugSize(it){if(it.size==='custom')return[it.rw,it.rd];if(it.size[0]==='r'){const d=+it.size.slice(1);return[d,d];}const [w,d]=it.size.split('x').map(Number);return[w,d];}
 const DINING={4:[1.4,.8],6:[1.8,.9]};
 // the full-height curtain hangs from just under the double-height ceiling
@@ -600,30 +603,30 @@ const TYPES={
 
   /* ----- 침실 ----- */
   bed:{label:'침대',cat:'bedroom',need:60,
-    defaults:{size:160,c:'#f5f3ee',w:'#8b5a3c',pat:'seer',pil:'#cbbfae'},dims:it=>[it.size+10,215],
+    defaults:{size:'EK',c:'#f5f3ee',w:'#8b5a3c',pat:'seer',pil:'#cbbfae'},dims:it=>{const [w,l]=bedSize(it);return[w+10,l+14];},
     slots:[{k:'c',role:'bedding',label:'이불',hide:it=>it.pat==='stripe'},{k:'w',role:'wood',label:'프레임'}],
-    opts:[{k:'size',label:'매트리스',choices:[[110,'슈퍼싱글'],[150,'퀸'],[160,'킹'],[180,'라지킹']]},
+    opts:[{k:'size',label:'매트리스',choices:Object.entries(BED_SIZES).map(([k,[w,l,n]])=>[k,`${n} ${w}×${l}`])},
       {k:'pat',label:'이불',choices:Object.entries(BEDDING).map(([k,p])=>[k,p.name])},
       {k:'pil',label:'베개 (린넨)',choices:[['#cbbfae','내추럴'],['#4a4038','다크 브라운'],['#efd2cd','블러시 핑크'],['#f3f1ec','화이트'],['#9aa58f','세이지']],bg:v=>`background:${v}`}],
     build(it,g){
       // low platform without a headboard: dark recessed plinth, thin wood frame, puffy duvet and flat pillows
-      const mw=cm(it.size),W=mw+.1,L=2.1,fr=MC(it.w,.6),duv=beddingMat(it.pat,it.c),r=seeded(hashStr(it.id));
+      const [sw,sl]=bedSize(it),mw=cm(sw),ml=cm(sl),hd=-ml/2,W=mw+.1,L=ml+.09,fr=MC(it.w,.6),duv=beddingMat(it.pat,it.c),r=seeded(hashStr(it.id));
       const sheet=it.pat==='stripe'?MC('#c9c7c4',1):MC(shade(it.c,-.04),1);
       add(g,W-.16,.07,L-.16,MC(shade(it.w,-.45),.8),0,0,0);
       soft(g,W,.09,L,fr,0,.07,0,.015);
-      soft(g,mw,.2,2.0,sheet,0,.16,0,.04,.01);
+      soft(g,mw,.2,ml,sheet,0,.16,0,.04,.01);
       if(duv.side!==THREE.DoubleSide){duv.side=THREE.DoubleSide;duv.needsUpdate=true;}
-      const d=new THREE.Mesh(duvetGeo(mw,-.5,1.0,.4,.25,r),duv);
+      const d=new THREE.Mesh(duvetGeo(mw,hd+.5,ml/2,.4,.25,r),duv);
       d.castShadow=d.receiveShadow=true;d.rotation.y=(r()-.5)*.02;g.add(d);
-      wrinkle(soft(g,mw+.12,.09,.26,duv,0,.38,-.43,.05,.03),.008,r);
+      wrinkle(soft(g,mw+.12,.09,.26,duv,0,.38,hd+.57,.05,.03),.008,r);
       // linen pillow sets: a 55 square leaning back toward the wall with a 50 x 30 lumbar propped in front
       const pm=rugMat('linen',it.pil),pipe=MC(shade(it.pil,-.12),.9),np=mw>1.3?2:1,seed=hashStr(it.id);
       for(let k=0;k<np;k++){
         const x=np===1?0:(k?1:-1)*mw/4;
         const sq=throwPillow(.55,.55,.15,pm,pipe,seed+k*31);
-        sq.rotation.set(-.3,(r()-.5)*.08,(r()-.5)*.04);sq.position.set(x,.36+.275*Math.cos(.3)*.96,-.86);g.add(sq);
+        sq.rotation.set(-.3,(r()-.5)*.08,(r()-.5)*.04);sq.position.set(x,.36+.275*Math.cos(.3)*.96,hd+.14);g.add(sq);
         const lu=throwPillow(.5,.3,.12,pm,pipe,seed+k*31+13);
-        lu.rotation.set(-.38,(r()-.5)*.1,(r()-.5)*.05);lu.position.set(x+(r()-.5)*.03,.36+.15*Math.cos(.38)*.96,-.656);g.add(lu);
+        lu.rotation.set(-.38,(r()-.5)*.1,(r()-.5)*.05);lu.position.set(x+(r()-.5)*.03,.36+.15*Math.cos(.38)*.96,hd+.344);g.add(lu);
       }
     }},
   nightstand:{label:'협탁',cat:'bedroom',

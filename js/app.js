@@ -10,7 +10,7 @@ const DEFAULT_FINISH=()=>({
 });
 const CEIL_MIN=4.8,CEIL_MAX=6.5;
 const DEFAULT_ITEMS=[
-  {id:'bed',type:'bed',label:'킹 침대',cx:95,cz:110,rot:0,size:160},
+  {id:'bed',type:'bed',label:'킹 침대',cx:95,cz:110,rot:0,size:'EK'},
   {id:'ns',type:'nightstand',label:'협탁',cx:212,cz:25,rot:0},
   {id:'deskA',type:'desk',label:'데스크 A',cx:225,cz:675,rot:180,h:74},
   {id:'deskB',type:'desk',label:'데스크 B',cx:42,cz:495,rot:90,h:110},
@@ -27,7 +27,7 @@ const DEFAULT_ITEMS=[
   {id:'lowShelf',type:'lowShelf',label:'낮은 책장',cx:125,cz:279,rot:180,lv:1},
   {id:'globeLamp',type:'globeLamp',label:'글로브 램프',cx:222,cz:26,rot:0,lv:1},
 ];
-const freshState=()=>({v:18,items:DEFAULT_ITEMS.map(i=>withDefaults(Object.assign({lv:0},i))),finish:DEFAULT_FINISH()});
+const freshState=()=>({v:19,items:DEFAULT_ITEMS.map(i=>withDefaults(Object.assign({lv:0},i))),finish:DEFAULT_FINISH()});
 function normalize(s){
   const f=DEFAULT_FINISH(),g=s.finish||{};
   s.finish={walls:Object.assign(f.walls,g.walls),paper:Object.assign(f.paper,g.paper),floors:Object.assign(f.floors,g.floors),tv:g.tv||f.tv,mood:g.mood||f.mood,
@@ -55,7 +55,8 @@ function normalize(s){
   if(v<16)s.items.forEach(i=>{if(i.type==='besta'&&i.inch)i.inch=75;});
   if(v<17)s.items.forEach(i=>{if(i.type==='builtIn'&&i.lv===0&&i.cz<400&&i.cx-i.width/2<199+10&&i.cx+i.width/2>199){i.width=180;i.cx=90;}});
   if(v<18)s.items.forEach(i=>{if(i.type==='vanity'&&i.label.startsWith('빈티지 화장대')){i.label=i.label.replace('빈티지 화장대','잉글랜더 화장대');i.w='#c19d74';}});
-  s.v=18;return s;
+  if(v<19)s.items.forEach(i=>{if(i.type==='bed'&&!BED_SIZES[i.size])i.size=+i.size<=150?'Q':'EK';});
+  s.v=19;return s;
 }
 const LS_CUR='duplex-deco:current',LS_SAVES='duplex-deco:saves';
 function loadCurrent(){try{const s=JSON.parse(localStorage.getItem(LS_CUR)||'null');if(s&&Array.isArray(s.items))return normalize(s);}catch(e){}return null;}
